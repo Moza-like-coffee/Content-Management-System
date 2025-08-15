@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Article;
 use App\Models\Category;
 use App\Models\Tag;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -23,6 +22,9 @@ class ArticleController extends Controller
         $this->middleware(['auth', 'is_admin']);
     }
 
+    // ==========================
+    // CRUD + Filter Methods
+    // ==========================
     /**
      * Display a listing of articles with filters
      */
@@ -43,6 +45,11 @@ class ArticleController extends Controller
      */
     protected function getFilteredArticles()
     {
+        $query = Article::with(['categories', 'author'])
+            ->when(request('search'), function ($q, $search) {
+                $q->where(function ($q2) use ($search) {
+                    $q2->where('title', 'like', "%{$search}%")
+                       ->orWhere('content', 'like', "%{$search}%");
         return Article::with(['categories', 'author'])
             ->when(request('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -50,24 +57,25 @@ class ArticleController extends Controller
                         ->orWhere('content', 'like', "%{$search}%");
                 });
             })
-            ->when(request('status'), function ($query, $status) {
+            ->when(request('status'), function ($q, $status) {
                 if (in_array($status, $this->statuses)) {
-                    $query->where('status', $status);
+                    $q->where('status', $status);
                 }
             })
-            ->when(request('category'), function ($query, $categorySlug) {
-                $query->whereHas('categories', function ($q) use ($categorySlug) {
-                    $q->where('slug', $categorySlug);
+            ->when(request('category'), function ($q, $slug) {
+                $q->whereHas('categories', function ($q2) use ($slug) {
+                    $q2->where('slug', $slug);
                 });
             })
-            ->when(request('author'), function ($query, $username) {
-                $query->whereHas('author', function ($q) use ($username) {
-                    $q->where('username', $username);
+            ->when(request('author'), function ($q, $username) {
+                $q->whereHas('author', function ($q2) use ($username) {
+                    $q2->where('username', $username);
                 });
             })
-            ->latest()
-            ->paginate($this->perPage)
-            ->withQueryString();
+            ->latest();
+
+        // Safe for all Laravel versions
+        return $query->paginate($this->perPage)->appends(request()->query());
     }
 
     /**
@@ -151,6 +159,9 @@ class ArticleController extends Controller
             ->with('success', 'Article deleted successfully');
     }
 
+    // ==========================
+    // Validation & Helpers
+    // ==========================
     /**
      * Validate article request data
      */
@@ -278,6 +289,9 @@ class ArticleController extends Controller
             ->with('success', $message);
     }
 
+    // ==========================
+    // Extra Features
+    // ==========================
     /**
      * Generate slug from title
      */
@@ -298,6 +312,7 @@ class ArticleController extends Controller
      */
     public function uploadImage(Request $request)
     {
+        $request->validate(['image' => 'required|image|max:2048|mimes:jpeg,png,jpg,gif']);
         $request->validate([
             'image' => 'required|image|max:2048|mimes:jpeg,png,jpg,gif'
         ]);
@@ -416,6 +431,7 @@ class ArticleController extends Controller
         $query->whereDate('created_at', '<=', $request->date_to);
     }
 
+        $articles = $query->latest()->paginate($this->perPage)->appends($request->query());
     // Statistik (tidak terfilter)
     $totalArticles     = Article::count();
     $publishedArticles = Article::where('status', 'published')->count();
@@ -425,6 +441,12 @@ class ArticleController extends Controller
     // Artikel terbaru sesuai filter
     $recentArticles = $query->latest()->take(10)->get();
 
+        return view('admin.dashboard', [
+            'articles' => $articles,
+            'statuses' => $this->statuses,
+            'filters' => $request->only(['status', 'date_from', 'date_to'])
+        ]);
+    }
     return view('admin.dashboard', compact(
         'totalArticles',
         'publishedArticles',

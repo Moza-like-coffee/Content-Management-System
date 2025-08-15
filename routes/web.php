@@ -59,9 +59,11 @@ Route::middleware(['auth', 'is_admin'])
         Route::post('article/upload-image', [ArticleController::class, 'uploadImage'])->name('article.upload-image');
         Route::post('article/{article}/publish', [ArticleController::class, 'publish'])->name('article.publish');
         Route::post('article/{article}/archive', [ArticleController::class, 'archive'])->name('article.archive');
+        Route::get('/article', [ArticleController::class, 'index'])->name('article.index');
 
         // Admin Dashboard with article filter
         Route::get('/dashboard', [ArticleController::class, 'dashboard'])->name('dashboard');
+        
     });
 
 require __DIR__.'/auth.php';

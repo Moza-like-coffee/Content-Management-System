@@ -30,4 +30,19 @@ class HomeController extends Controller
         $gallery = Gallery::with('images')->findOrFail($id);
         return view('gallery.show', compact('gallery'));
     }
+
+    public function article(Request $request)
+    {
+        $query = $request->input('query');
+
+        $articles = \App\Models\Article::query()
+            ->when($query, function ($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                    ->orWhere('content', 'like', "%{$query}%");
+            })
+            ->latest()
+            ->paginate(10);
+
+        return view('article.index', compact('articles', 'query'));
+    }
 }

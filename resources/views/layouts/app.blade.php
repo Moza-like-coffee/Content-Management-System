@@ -46,16 +46,17 @@
                     </div>
 
                     <!-- Search Bar (Desktop) -->
+                    <!-- Search Bar (Desktop) -->
                     <div class="hidden md:block" x-show="searchOpen"
                         x-transition:enter="transition ease-out duration-200"
                         x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                         x-transition:leave="transition ease-in duration-150"
                         x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
-                        <form action="#" method="GET">
+                        <form action="{{ route('article.index') }}" method="GET">
                             <div class="flex items-center h-10 bg-[#B2C6D5]">
                                 <input type="text" name="query"
                                     class="w-64 h-10 text-sm px-4 border-r-0 rounded-l-full focus:border-blue-600 focus:ring-0 transition-all duration-300 focus:ring-2 focus:ring-blue-200"
-                                    placeholder="Search articles...">
+                                    placeholder="Search articles..." value="{{ request('query') }}">
                                 <button aria-label="Search"
                                     class="px-4 bg-blue-600 hover:bg-blue-700 rounded-r-full text-white duration-300 h-10 transition-all hover:shadow-md hover:shadow-blue-200 active:scale-95">
                                     <svg aria-hidden="true" viewBox="0 0 512 512" width="18" height="18"
@@ -68,6 +69,7 @@
                             </div>
                         </form>
                     </div>
+
 
                     <!-- Search Icon (Desktop) -->
                     <button @click="searchOpen = !searchOpen"

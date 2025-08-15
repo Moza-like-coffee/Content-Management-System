@@ -106,13 +106,22 @@
                     </div>
                 </div>
 
-                <!-- Date From -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">From Date</label>
-                    <div class="relative">
-                        <input type="date" name="date_from" value="{{ request('date_from') }}"
-                            class="block w-full px-4 py-2.5 text-sm bg-white/90 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
-                    </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Penulis
+                    </label>
+                    <select name="author"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out">
+                        <option value="">Semua Penulis</option>
+                        @foreach ($authors ?? [] as $author)
+                            <option value="{{ $author->username }}" {{ request('author') == $author->username ? 'selected' : '' }}>
+                                {{ $author->name }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <!-- Date To -->
