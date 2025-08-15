@@ -4,7 +4,7 @@
 <div class="container mx-auto px-4 py-8">
     <!-- Hero Section -->
     <section class="mb-12">
-        <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white mt-12">
             <h1 class="text-4xl md:text-5xl font-bold mb-4">Selamat Datang </h1>
             <p class="text-xl mb-6">Temukan koleksi galeri dan artikel terbaru kami</p>
             <div class="flex space-x-4">

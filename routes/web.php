@@ -14,11 +14,6 @@ use App\Http\Controllers\Admin\DashboardController;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
 */
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -27,8 +22,12 @@ Route::get('/article/{id}', [HomeController::class, 'showArticle'])->name('artic
 Route::get('/gallery/{id}', [HomeController::class, 'showGallery'])->name('gallery.show');
 
 Route::get('/dashboard', function () {
+    if (auth()->user()->is_admin) {
+        return redirect()->route('admin.dashboard');
+    }
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -40,6 +39,7 @@ Route::get('/posts/{post:slug}', [PostController::class,'show'])->name('posts.sh
 Route::get('/galleries', [GalleryController::class,'index'])->name('galleries.index');
 Route::get('/galleries/{gallery:slug}', [GalleryController::class,'show'])->name('galleries.show');
 
+<<<<<<< HEAD
 // Admin area (protected)
 Route::middleware(['auth','is_admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('posts', AdminPostController::class);
@@ -58,5 +58,31 @@ Route::post('article/upload-image', [ArticleController::class, 'uploadImage'])->
     Route::post('article/{article}/publish', [ArticleController::class, 'publish'])->name('article.publish');
     Route::post('article/{article}/archive', [ArticleController::class, 'archive'])->name('article.archive');
 });
+=======
+/*
+|--------------------------------------------------------------------------
+| Admin Routes (Protected)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'is_admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        
+        // Posts & Galleries
+        Route::resource('posts', AdminPostController::class);
+        Route::resource('galleries', AdminGalleryController::class);
+        
+        // Articles
+        Route::resource('article', ArticleController::class)->except(['show']);
+        Route::post('article/generate-slug', [ArticleController::class, 'generateSlug'])->name('article.generate-slug');
+        Route::post('article/upload-image', [ArticleController::class, 'uploadImage'])->name('article.upload-image');
+        Route::post('article/{article}/publish', [ArticleController::class, 'publish'])->name('article.publish');
+        Route::post('article/{article}/archive', [ArticleController::class, 'archive'])->name('article.archive');
+>>>>>>> origin/angga
+
+        // Admin Dashboard with article filter
+        Route::get('/dashboard', [ArticleController::class, 'dashboard'])->name('dashboard');
+    });
 
 require __DIR__.'/auth.php';
