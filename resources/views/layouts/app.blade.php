@@ -10,7 +10,6 @@
 
 <body class="bg-grey-50 text-grey-900 font-sans">
     <!-- Modern Navbar -->
-    <!-- Modern Navbar -->
     <div x-data="{ open: false, searchOpen: false, openUser: false }">
         <div class="fixed top-0 left-0 w-full bg-[#B2C6D5] px-0 md:px-0 py-4 z-50 shadow-md shadow-black/10">
             <div class="w-full mx-auto flex items-center justify-between px-4 md:px-8 max-w-none">
