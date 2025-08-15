@@ -26,31 +26,17 @@ class ArticleController extends Controller
     /**
      * Display a listing of articles with filters
      */
-public function index()
-{
-    $articles = Article::with(['categories', 'author'])
-                ->when(request('search'), function($query, $search) {
-                    $query->where(function($q) use ($search) {
-                        $q->where('title', 'like', '%'.$search.'%')
-                          ->orWhere('content', 'like', '%'.$search.'%');
-                    });
-                })
-                ->when(request('status'), function($query, $status) {
-                    $query->where('status', $status);
-                })
-                ->when(request('category'), function($query, $category) {
-                    $query->whereHas('categories', function($q) use ($category) {
-                        $q->where('slug', $category);
-                    });
-                })
-                ->latest()
-                ->paginate(15);
+    public function index()
+    {
+        $articles = $this->getFilteredArticles();
 
-    $categories = Category::all();
-    $statuses = ['draft', 'published', 'archived'];
-
-    return view('admin.article.index', compact('articles', 'categories', 'statuses'));
-}
+        return view('admin.article.index', [
+            'articles' => $articles,
+            'categories' => Category::all(),
+            'statuses' => $this->statuses,
+            'filters' => $this->getCurrentFilters()
+        ]);
+    }
 
     /**
      * Get filtered articles based on request parameters
@@ -59,9 +45,9 @@ public function index()
     {
         return Article::with(['categories', 'author'])
             ->when(request('search'), function ($query, $search) {
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('title', 'like', "%{$search}%")
-                      ->orWhere('content', 'like', "%{$search}%");
+                        ->orWhere('content', 'like', "%{$search}%");
                 });
             })
             ->when(request('status'), function ($query, $status) {
@@ -70,12 +56,12 @@ public function index()
                 }
             })
             ->when(request('category'), function ($query, $categorySlug) {
-                $query->whereHas('categories', function($q) use ($categorySlug) {
+                $query->whereHas('categories', function ($q) use ($categorySlug) {
                     $q->where('slug', $categorySlug);
                 });
             })
             ->when(request('author'), function ($query, $username) {
-                $query->whereHas('author', function($q) use ($username) {
+                $query->whereHas('author', function ($q) use ($username) {
                     $q->where('username', $username);
                 });
             })
@@ -104,7 +90,8 @@ public function index()
     {
         return view('admin.article.create', [
             'categories' => Category::all(),
-            'tags' => Tag::all()
+            'tags' => Tag::all(),
+            'statuses' => $this->statuses
         ]);
     }
 
@@ -117,7 +104,6 @@ public function index()
         $imagePath = $this->handleImageUpload($request);
 
         $article = $this->createArticle($validated, $imagePath);
-
         $this->syncRelationships($article, $validated);
 
         return $this->redirectAfterStore($article, $validated['status']);
@@ -132,6 +118,7 @@ public function index()
             'article' => $article,
             'categories' => Category::all(),
             'tags' => Tag::all(),
+            'statuses' => $this->statuses,
             'selectedCategories' => $article->categories->pluck('id')->toArray(),
             'selectedTags' => $article->tags->pluck('id')->toArray()
         ]);
@@ -149,7 +136,7 @@ public function index()
         $this->syncRelationships($article, $validated);
 
         return redirect()->route('admin.article.edit', $article)
-            ->with('success', 'Artikel berhasil diperbarui');
+            ->with('success', 'Article updated successfully');
     }
 
     /**
@@ -161,7 +148,7 @@ public function index()
         $article->delete();
 
         return redirect()->route('admin.article.index')
-            ->with('success', 'Artikel berhasil dihapus');
+            ->with('success', 'Article deleted successfully');
     }
 
     /**
@@ -217,7 +204,7 @@ public function index()
      */
     protected function storeImage($image)
     {
-        $filename = 'article_'.time().'_'.Str::random(10).'.'.$image->getClientOriginalExtension();
+        $filename = 'article_' . time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
         return $image->storeAs('articles', $filename, 'public');
     }
 
@@ -285,7 +272,7 @@ public function index()
     protected function redirectAfterStore(Article $article, $status)
     {
         $route = $status === 'published' ? 'admin.article.index' : 'admin.article.edit';
-        $message = 'Artikel berhasil '.($status === 'published' ? 'dipublikasikan' : 'disimpan sebagai draft');
+        $message = $status === 'published' ? 'Article published successfully' : 'Article saved as draft';
 
         return redirect()->route($route, $article)
             ->with('success', $message);
@@ -334,7 +321,7 @@ public function index()
         ]);
 
         $count = $this->processBulkAction(
-            $validated['action'], 
+            $validated['action'],
             $validated['ids']
         );
 
@@ -363,8 +350,8 @@ public function index()
     protected function deleteArticles($ids)
     {
         $articles = Article::whereIn('id', $ids)->get();
-        
-        $articles->each(function($article) {
+
+        $articles->each(function ($article) {
             if ($article->image) {
                 Storage::disk('public')->delete($article->image);
             }
@@ -401,11 +388,50 @@ public function index()
     protected function getBulkActionMessage($action, $count)
     {
         $messages = [
-            'delete' => "$count artikel berhasil dihapus",
-            'publish' => "$count artikel berhasil dipublikasikan",
-            'archive' => "$count artikel berhasil diarsipkan"
+            'delete' => "$count articles deleted successfully",
+            'publish' => "$count articles published successfully",
+            'archive' => "$count articles archived successfully"
         ];
 
-        return $messages[$action] ?? 'Aksi berhasil dilakukan';
+        return $messages[$action] ?? 'Action completed successfully';
     }
+
+    public function dashboard(Request $request)
+{
+    // Query dasar untuk filter
+    $query = Article::query();
+
+    // Filter status
+    if ($request->filled('status') && in_array($request->status, ['published', 'draft', 'archived'])) {
+        $query->where('status', $request->status);
+    }
+
+    // Filter tanggal dari
+    if ($request->filled('date_from')) {
+        $query->whereDate('created_at', '>=', $request->date_from);
+    }
+
+    // Filter tanggal sampai
+    if ($request->filled('date_to')) {
+        $query->whereDate('created_at', '<=', $request->date_to);
+    }
+
+    // Statistik (tidak terfilter)
+    $totalArticles     = Article::count();
+    $publishedArticles = Article::where('status', 'published')->count();
+    $draftArticles     = Article::where('status', 'draft')->count();
+    $archivedArticles  = Article::where('status', 'archived')->count();
+
+    // Artikel terbaru sesuai filter
+    $recentArticles = $query->latest()->take(10)->get();
+
+    return view('admin.dashboard', compact(
+        'totalArticles',
+        'publishedArticles',
+        'draftArticles',
+        'archivedArticles',
+        'recentArticles'
+    ));
+}
+
 }
