@@ -50,9 +50,6 @@ Route::resource('article', ArticleController::class)->except(['show']);
 Route::post('article/generate-slug', [ArticleController::class, 'generateSlug'])->name('article.generate-slug');
 Route::post('article/upload-image', [ArticleController::class, 'uploadImage'])->name('article.upload-image');
 
-// Additional routes for complex article features
-Route::post('article/auto-save', [ArticleController::class, 'autoSaveDraft'])->name('article.auto-save');
-Route::get('tag/suggest', [\App\Http\Controllers\Admin\TagController::class, 'suggest'])->name('tag.suggest');
 
     // Dashboard route
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
