@@ -10,7 +10,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class ArticleController extends Controller
@@ -23,9 +22,10 @@ class ArticleController extends Controller
         $this->middleware(['auth', 'is_admin']);
     }
 
-    /**
-     * Display a listing of articles with filters
-     */
+    // ==========================
+    // CRUD + Filter Methods
+    // ==========================
+
     public function index()
     {
         $articles = $this->getFilteredArticles();
@@ -38,16 +38,13 @@ class ArticleController extends Controller
         ]);
     }
 
-    /**
-     * Get filtered articles based on request parameters
-     */
     protected function getFilteredArticles()
     {
         return Article::with(['categories', 'author'])
             ->when(request('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('title', 'like', "%{$search}%")
-                        ->orWhere('content', 'like', "%{$search}%");
+                      ->orWhere('content', 'like', "%{$search}%");
                 });
             })
             ->when(request('status'), function ($query, $status) {
@@ -70,9 +67,6 @@ class ArticleController extends Controller
             ->withQueryString();
     }
 
-    /**
-     * Get current filter values from request
-     */
     protected function getCurrentFilters()
     {
         return [
@@ -83,9 +77,6 @@ class ArticleController extends Controller
         ];
     }
 
-    /**
-     * Show the form for creating a new article
-     */
     public function create()
     {
         return view('admin.article.create', [
@@ -95,9 +86,6 @@ class ArticleController extends Controller
         ]);
     }
 
-    /**
-     * Store a newly created article
-     */
     public function store(Request $request)
     {
         $validated = $this->validateArticleRequest($request);
@@ -109,9 +97,6 @@ class ArticleController extends Controller
         return $this->redirectAfterStore($article, $validated['status']);
     }
 
-    /**
-     * Show the form for editing an article
-     */
     public function edit(Article $article)
     {
         return view('admin.article.edit', [
@@ -124,9 +109,6 @@ class ArticleController extends Controller
         ]);
     }
 
-    /**
-     * Update an existing article
-     */
     public function update(Request $request, Article $article)
     {
         $validated = $this->validateArticleRequest($request, $article);
@@ -139,21 +121,21 @@ class ArticleController extends Controller
             ->with('success', 'Article updated successfully');
     }
 
-    /**
-     * Delete an article
-     */
     public function destroy(Article $article)
     {
-        Storage::disk('public')->delete($article->image);
+        if ($article->image) {
+            Storage::disk('public')->delete($article->image);
+        }
         $article->delete();
 
         return redirect()->route('admin.article.index')
             ->with('success', 'Article deleted successfully');
     }
 
-    /**
-     * Validate article request data
-     */
+    // ==========================
+    // Validation & Helpers
+    // ==========================
+
     protected function validateArticleRequest(Request $request, Article $article = null)
     {
         $rules = [
@@ -183,9 +165,6 @@ class ArticleController extends Controller
         return $request->validate($rules);
     }
 
-    /**
-     * Handle image upload
-     */
     protected function handleImageUpload(Request $request, Article $article = null)
     {
         if (!$request->hasFile('image')) {
@@ -199,18 +178,12 @@ class ArticleController extends Controller
         return $this->storeImage($request->file('image'));
     }
 
-    /**
-     * Store image file
-     */
     protected function storeImage($image)
     {
         $filename = 'article_' . time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
         return $image->storeAs('articles', $filename, 'public');
     }
 
-    /**
-     * Create new article record
-     */
     protected function createArticle(array $data, $imagePath)
     {
         return Article::create([
@@ -228,9 +201,6 @@ class ArticleController extends Controller
         ]);
     }
 
-    /**
-     * Update existing article
-     */
     protected function updateArticle(Article $article, array $data, $imagePath)
     {
         $updateData = [
@@ -252,9 +222,6 @@ class ArticleController extends Controller
         $article->update($updateData);
     }
 
-    /**
-     * Sync article relationships
-     */
     protected function syncRelationships(Article $article, array $data)
     {
         if (isset($data['categories'])) {
@@ -266,9 +233,6 @@ class ArticleController extends Controller
         }
     }
 
-    /**
-     * Determine redirect after store
-     */
     protected function redirectAfterStore(Article $article, $status)
     {
         $route = $status === 'published' ? 'admin.article.index' : 'admin.article.edit';
@@ -278,40 +242,27 @@ class ArticleController extends Controller
             ->with('success', $message);
     }
 
-    /**
-     * Generate slug from title
-     */
+    // ==========================
+    // Extra Features
+    // ==========================
+
     public function generateSlug(Request $request)
     {
         $request->validate(['title' => 'required|string']);
-
         $slug = Str::slug($request->title);
         $count = Article::where('slug', 'like', "{$slug}%")->count();
 
-        return response()->json([
-            'slug' => $count ? "{$slug}-{$count}" : $slug
-        ]);
+        return response()->json(['slug' => $count ? "{$slug}-{$count}" : $slug]);
     }
 
-    /**
-     * Handle image upload from editor
-     */
     public function uploadImage(Request $request)
     {
-        $request->validate([
-            'image' => 'required|image|max:2048|mimes:jpeg,png,jpg,gif'
-        ]);
-
+        $request->validate(['image' => 'required|image|max:2048|mimes:jpeg,png,jpg,gif'] );
         $path = $this->storeImage($request->file('image'));
 
-        return response()->json([
-            'url' => Storage::disk('public')->url($path)
-        ]);
+        return response()->json(['url' => Storage::disk('public')->url($path)]);
     }
 
-    /**
-     * Handle bulk actions
-     */
     public function bulkActions(Request $request)
     {
         $validated = $request->validate([
@@ -320,71 +271,41 @@ class ArticleController extends Controller
             'ids.*' => 'exists:articles,id'
         ]);
 
-        $count = $this->processBulkAction(
-            $validated['action'],
-            $validated['ids']
-        );
+        $count = $this->processBulkAction($validated['action'], $validated['ids']);
 
         return redirect()->back()
             ->with('success', $this->getBulkActionMessage($validated['action'], $count));
     }
 
-    /**
-     * Process bulk action
-     */
     protected function processBulkAction($action, $ids)
     {
         switch ($action) {
-            case 'delete':
-                return $this->deleteArticles($ids);
-            case 'publish':
-                return $this->publishArticles($ids);
-            case 'archive':
-                return $this->archiveArticles($ids);
+            case 'delete': return $this->deleteArticles($ids);
+            case 'publish': return $this->publishArticles($ids);
+            case 'archive': return $this->archiveArticles($ids);
         }
     }
 
-    /**
-     * Delete multiple articles
-     */
     protected function deleteArticles($ids)
     {
         $articles = Article::whereIn('id', $ids)->get();
-
         $articles->each(function ($article) {
-            if ($article->image) {
-                Storage::disk('public')->delete($article->image);
-            }
+            if ($article->image) Storage::disk('public')->delete($article->image);
             $article->delete();
         });
-
         return count($ids);
     }
 
-    /**
-     * Publish multiple articles
-     */
     protected function publishArticles($ids)
     {
-        return Article::whereIn('id', $ids)
-            ->update([
-                'status' => 'published',
-                'published_at' => now()
-            ]);
+        return Article::whereIn('id', $ids)->update(['status' => 'published', 'published_at' => now()]);
     }
 
-    /**
-     * Archive multiple articles
-     */
     protected function archiveArticles($ids)
     {
-        return Article::whereIn('id', $ids)
-            ->update(['status' => 'archived']);
+        return Article::whereIn('id', $ids)->update(['status' => 'archived']);
     }
 
-    /**
-     * Get bulk action success message
-     */
     protected function getBulkActionMessage($action, $count)
     {
         $messages = [
@@ -392,51 +313,41 @@ class ArticleController extends Controller
             'publish' => "$count articles published successfully",
             'archive' => "$count articles archived successfully"
         ];
-
         return $messages[$action] ?? 'Action completed successfully';
     }
-<<<<<<< HEAD
-    
-}
-=======
 
+    // ==========================
+    // Dashboard for Admin
+    // ==========================
     public function dashboard(Request $request)
-{
-    // Query dasar untuk filter
-    $query = Article::query();
+    {
+        $query = Article::query();
 
-    // Filter status
-    if ($request->filled('status') && in_array($request->status, ['published', 'draft', 'archived'])) {
-        $query->where('status', $request->status);
+        if ($request->filled('status') && in_array($request->status, $this->statuses)) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $totalArticles     = Article::count();
+        $publishedArticles = Article::where('status', 'published')->count();
+        $draftArticles     = Article::where('status', 'draft')->count();
+        $archivedArticles  = Article::where('status', 'archived')->count();
+
+        $recentArticles = $query->latest()->take(10)->get();
+
+        return view('admin.dashboard', compact(
+            'totalArticles',
+            'publishedArticles',
+            'draftArticles',
+            'archivedArticles',
+            'recentArticles'
+        ));
     }
-
-    // Filter tanggal dari
-    if ($request->filled('date_from')) {
-        $query->whereDate('created_at', '>=', $request->date_from);
-    }
-
-    // Filter tanggal sampai
-    if ($request->filled('date_to')) {
-        $query->whereDate('created_at', '<=', $request->date_to);
-    }
-
-    // Statistik (tidak terfilter)
-    $totalArticles     = Article::count();
-    $publishedArticles = Article::where('status', 'published')->count();
-    $draftArticles     = Article::where('status', 'draft')->count();
-    $archivedArticles  = Article::where('status', 'archived')->count();
-
-    // Artikel terbaru sesuai filter
-    $recentArticles = $query->latest()->take(10)->get();
-
-    return view('admin.dashboard', compact(
-        'totalArticles',
-        'publishedArticles',
-        'draftArticles',
-        'archivedArticles',
-        'recentArticles'
-    ));
 }
-
-}
->>>>>>> origin/angga
